@@ -1,0 +1,72 @@
+#!/bin/bash
+#number guessing game
+#get name of player
+PSQL="psql --username=freecodecamp --dbname=number_guess -t --no-align -c"
+#CHECK=$($PSQL "SELECT * FROM games;")
+echo Enter your username:
+read NAME
+#check length of NAME
+if [[ ${#NAME} -gt 22 ]]
+  then
+  echo Name must be a maximum of 22 characters! Please re-try!
+  read NAME
+  #check if already in database
+else
+  USERNAME=$($PSQL "SELECT username FROM games WHERE username = '$NAME';")
+   
+  #if no add to database and
+  if [[ -z $USERNAME ]]
+  then
+    INSERT_USERNAME_RESULT=$($PSQL "INSERT INTO games(username) VALUES ('$NAME');")
+    echo Welcome, $NAME! It looks like this is your first time here.
+  #GAMES=0
+  else
+  #if yes get number of games played (GAMES) and lowest tries (BEST)
+    GAMES=$($PSQL "SELECT count(tries) FROM games WHERE tries IS NOT NULL AND username = '$NAME';")
+    BEST=$($PSQL "SELECT min(tries) FROM games WHERE username = '$NAME';") 
+    echo "Welcome back, $NAME! You have played $GAMES games, and your best game took $BEST guesses."
+  fi
+  
+fi
+#start game
+
+GOES=0;
+#generate random number
+
+GOAL=$((1 + $RANDOM % 1000))
+
+#get guess
+echo Guess the secret number between 1 and 1000:
+read GUESS
+#check if integer
+if ! [[ "$GUESS" =~ ^[0-9]+$ ]]
+  then
+  echo That is not an integer, guess again:
+  read GUESS
+  else
+  #compare to guess to goal
+  while [[ $GUESS -ne $GOAL ]]
+  do
+    if [[ $GUESS -lt $GOAL ]]
+    then
+    let GOES++
+	  echo "It's higher than that, guess again:" 
+    echo Guess the secret number between 1 and 1000:
+    read GUESS
+    
+    else 
+	  echo "It's lower than that, guess again:" 
+    let GOES++
+    echo Guess the secret number between 1 and 1000:
+    read GUESS
+    fi
+  done
+  if (( $GUESS == $GOAL ))
+  then 
+  #add 1 to gos
+  let GOES++
+  echo You guessed it in $GOES tries. The secret number was $GOAL. Nice job!
+	#add to database
+  INSERT_GAMES_RESULT=$($PSQL "INSERT INTO games (username,tries) VALUES ('$NAME', $GOES );")
+	fi
+fi
